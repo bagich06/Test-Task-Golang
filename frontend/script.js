@@ -3,12 +3,18 @@ class TaskManager {
     this.apiBase = "http://localhost:8080/api";
     this.token = localStorage.getItem("token");
     this.user = JSON.parse(localStorage.getItem("user") || "{}");
+    this.taskToDelete = null;
+    this.currentTheme = localStorage.getItem("theme") || "light";
+    this.currentFilter = "all";
+    this.allTasks = [];
 
     this.init();
   }
 
   init() {
     this.setupEventListeners();
+    this.applyTheme();
+    this.updateFilterButtons();
     this.checkAuth();
   }
 
@@ -34,6 +40,44 @@ class TaskManager {
     document
       .getElementById("add-task-form")
       .addEventListener("submit", (e) => this.handleAddTask(e));
+
+    document
+      .getElementById("cancel-delete")
+      .addEventListener("click", () => this.hideDeleteModal());
+    document
+      .getElementById("confirm-delete")
+      .addEventListener("click", () => this.confirmDelete());
+    document.getElementById("delete-modal").addEventListener("click", (e) => {
+      if (
+        e.target.id === "delete-modal" ||
+        e.target.classList.contains("modal-overlay")
+      ) {
+        this.hideDeleteModal();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (
+        e.key === "Escape" &&
+        !document.getElementById("delete-modal").classList.contains("hidden")
+      ) {
+        this.hideDeleteModal();
+      }
+    });
+
+    document
+      .getElementById("theme-toggle")
+      .addEventListener("click", () => this.toggleTheme());
+
+    document
+      .getElementById("filter-all")
+      .addEventListener("click", () => this.setFilter("all"));
+    document
+      .getElementById("filter-pending")
+      .addEventListener("click", () => this.setFilter("pending"));
+    document
+      .getElementById("filter-completed")
+      .addEventListener("click", () => this.setFilter("completed"));
   }
 
   checkAuth() {
@@ -88,7 +132,6 @@ class TaskManager {
         localStorage.setItem("user", JSON.stringify(this.user));
 
         this.showApp();
-        // Небольшая задержка перед загрузкой задач, чтобы токен успел сохраниться
         setTimeout(() => {
           this.loadTasks();
         }, 100);
@@ -127,7 +170,6 @@ class TaskManager {
         localStorage.setItem("user", JSON.stringify(this.user));
 
         this.showApp();
-        // Небольшая задержка перед загрузкой задач, чтобы токен успел сохраниться
         setTimeout(() => {
           this.loadTasks();
         }, 100);
@@ -181,7 +223,9 @@ class TaskManager {
 
       if (response.ok) {
         document.getElementById("task-description").value = "";
-        this.loadTasks();
+        const newTask = await response.json();
+        this.allTasks.push(newTask);
+        this.renderTasks();
         this.showMessage("Задача добавлена!", "success");
       } else {
         this.showMessage("Ошибка добавления задачи", "error");
@@ -206,9 +250,9 @@ class TaskManager {
 
       if (response.ok) {
         const tasks = await response.json();
-        this.renderTasks(tasks);
+        this.allTasks = tasks;
+        this.renderTasks();
       } else if (response.status === 401) {
-        // Токен недействителен, выходим из системы
         this.logout();
         this.showMessage("Сессия истекла, войдите заново", "error");
       } else {
@@ -222,11 +266,10 @@ class TaskManager {
     }
   }
 
-  renderTasks(tasks) {
+  renderTasks() {
     const tasksList = document.getElementById("tasks-list");
 
-    // Проверяем, что tasks не null и является массивом
-    if (!tasks || !Array.isArray(tasks) || tasks.length === 0) {
+    if (!this.allTasks || !Array.isArray(this.allTasks)) {
       tasksList.innerHTML = `
                 <div class="empty-state">
                     <h3>Нет задач</h3>
@@ -236,7 +279,34 @@ class TaskManager {
       return;
     }
 
-    tasksList.innerHTML = tasks
+    let filteredTasks = this.allTasks;
+    if (this.currentFilter === "pending") {
+      filteredTasks = this.allTasks.filter((task) => !task.is_done);
+    } else if (this.currentFilter === "completed") {
+      filteredTasks = this.allTasks.filter((task) => task.is_done);
+    }
+
+    if (filteredTasks.length === 0) {
+      const message =
+        this.currentFilter === "all"
+          ? "Нет задач"
+          : this.currentFilter === "pending"
+          ? "Нет невыполненных задач"
+          : "Нет выполненных задач";
+      tasksList.innerHTML = `
+                <div class="empty-state">
+                    <h3>${message}</h3>
+                    <p>${
+                      this.currentFilter === "all"
+                        ? "Добавьте свою первую задачу!"
+                        : "Попробуйте другой фильтр"
+                    }</p>
+                </div>
+            `;
+      return;
+    }
+
+    tasksList.innerHTML = filteredTasks
       .map(
         (task) => `
             <div class="task-item ${
@@ -266,7 +336,6 @@ class TaskManager {
     try {
       let response;
       if (currentStatus) {
-        // Если задача выполнена, отменяем выполнение
         response = await fetch(`${this.apiBase}/task/undone/${taskId}`, {
           method: "POST",
           headers: {
@@ -274,7 +343,6 @@ class TaskManager {
           },
         });
       } else {
-        // Если задача не выполнена, отмечаем как выполненную
         response = await fetch(`${this.apiBase}/task/done/${taskId}`, {
           method: "POST",
           headers: {
@@ -284,7 +352,11 @@ class TaskManager {
       }
 
       if (response.ok) {
-        this.loadTasks();
+        const taskIndex = this.allTasks.findIndex((task) => task.id === taskId);
+        if (taskIndex !== -1) {
+          this.allTasks[taskIndex].is_done = !currentStatus;
+        }
+        this.renderTasks();
         this.showMessage(
           currentStatus ? "Задача отменена" : "Задача выполнена!",
           "success"
@@ -337,21 +409,49 @@ class TaskManager {
     }
   }
 
-  async deleteTask(taskId) {
-    if (!confirm("Вы уверены, что хотите удалить эту задачу?")) {
-      return;
-    }
+  deleteTask(taskId) {
+    const taskElement = document.querySelector(`[data-task-id="${taskId}"]`);
+    const taskDescription =
+      taskElement?.querySelector(".task-description")?.textContent || "Задача";
+
+    this.taskToDelete = taskId;
+    document.getElementById(
+      "task-preview"
+    ).textContent = `"${taskDescription}"`;
+    this.showDeleteModal();
+  }
+
+  showDeleteModal() {
+    document.getElementById("delete-modal").classList.remove("hidden");
+    document.body.style.overflow = "hidden";
+  }
+
+  hideDeleteModal() {
+    document.getElementById("delete-modal").classList.add("hidden");
+    document.body.style.overflow = "";
+    this.taskToDelete = null;
+  }
+
+  async confirmDelete() {
+    if (!this.taskToDelete) return;
 
     try {
-      const response = await fetch(`${this.apiBase}/task/delete/${taskId}`, {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-        },
-      });
+      const response = await fetch(
+        `${this.apiBase}/task/delete/${this.taskToDelete}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this.token}`,
+          },
+        }
+      );
 
       if (response.ok) {
-        this.loadTasks();
+        this.hideDeleteModal();
+        this.allTasks = this.allTasks.filter(
+          (task) => task.id !== this.taskToDelete
+        );
+        this.renderTasks();
         this.showMessage("Задача удалена!", "success");
       } else {
         this.showMessage("Ошибка удаления задачи", "error");
@@ -377,7 +477,41 @@ class TaskManager {
     div.textContent = text;
     return div.innerHTML;
   }
+
+  applyTheme() {
+    document.documentElement.setAttribute("data-theme", this.currentTheme);
+    this.updateThemeIcon();
+  }
+
+  toggleTheme() {
+    this.currentTheme = this.currentTheme === "light" ? "dark" : "light";
+    localStorage.setItem("theme", this.currentTheme);
+    this.applyTheme();
+  }
+
+  updateThemeIcon() {
+    const themeIcon = document.getElementById("theme-icon");
+    themeIcon.textContent = this.currentTheme === "light" ? "🌙" : "☀️";
+  }
+
+  setFilter(filter) {
+    this.currentFilter = filter;
+    this.updateFilterButtons();
+    this.renderTasks();
+  }
+
+  updateFilterButtons() {
+    document.querySelectorAll(".filter-btn").forEach((btn) => {
+      btn.classList.remove("active");
+    });
+
+    const activeButton = document.getElementById(
+      `filter-${this.currentFilter}`
+    );
+    if (activeButton) {
+      activeButton.classList.add("active");
+    }
+  }
 }
 
-// Инициализация приложения
 const taskManager = new TaskManager();

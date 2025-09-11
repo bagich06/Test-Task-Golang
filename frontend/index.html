@@ -10,9 +10,18 @@
     <div class="container">
       <header>
         <h1>Task Manager</h1>
-        <div id="user-info" class="hidden">
-          <span id="username"></span>
-          <button id="logout-btn">Выйти</button>
+        <div class="header-controls">
+          <button
+            id="theme-toggle"
+            class="theme-toggle"
+            title="Переключить тему"
+          >
+            <span id="theme-icon">🌙</span>
+          </button>
+          <div id="user-info" class="hidden">
+            <span id="username"></span>
+            <button id="logout-btn">Выйти</button>
+          </div>
         </div>
       </header>
 
@@ -72,13 +81,41 @@
         </div>
 
         <div class="tasks-section">
-          <h2>Мои задачи</h2>
-          <div id="tasks-list">
+          <div class="tasks-header">
+            <h2>Мои задачи</h2>
+            <div class="task-filters">
+              <button id="filter-all" class="filter-btn active">Все</button>
+              <button id="filter-pending" class="filter-btn">
+                Не выполненные
+              </button>
+              <button id="filter-completed" class="filter-btn">
+                Выполненные
+              </button>
+            </div>
           </div>
+          <div id="tasks-list"></div>
         </div>
       </div>
 
       <div id="message" class="message hidden"></div>
+
+      <!-- Модальное окно подтверждения удаления -->
+      <div id="delete-modal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Подтверждение удаления</h3>
+          </div>
+          <div class="modal-body">
+            <p>Вы уверены, что хотите удалить эту задачу?</p>
+            <p class="task-preview" id="task-preview"></p>
+          </div>
+          <div class="modal-footer">
+            <button id="cancel-delete" class="btn btn-secondary">Отмена</button>
+            <button id="confirm-delete" class="btn btn-danger">Удалить</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <script src="script.js"></script>
