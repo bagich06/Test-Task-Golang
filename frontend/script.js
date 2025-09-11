@@ -211,6 +211,9 @@ class TaskManager {
     const description = document.getElementById("task-description").value;
     if (!description.trim()) return;
 
+    console.log("Adding new task:", description);
+    console.log("Current allTasks before adding:", this.allTasks);
+
     try {
       const response = await fetch(`${this.apiBase}/task/create`, {
         method: "POST",
@@ -221,16 +224,27 @@ class TaskManager {
         body: JSON.stringify({ description, is_done: false }),
       });
 
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+
       if (response.ok) {
         document.getElementById("task-description").value = "";
         const newTask = await response.json();
+        console.log("New task received:", newTask);
+        console.log("New task type:", typeof newTask);
+        console.log("New task keys:", Object.keys(newTask));
+
         this.allTasks.push(newTask);
+        console.log("All tasks after adding:", this.allTasks);
         this.renderTasks();
         this.showMessage("Задача добавлена!", "success");
       } else {
+        const errorText = await response.text();
+        console.error("Error adding task:", response.status, errorText);
         this.showMessage("Ошибка добавления задачи", "error");
       }
     } catch (error) {
+      console.error("Exception in handleAddTask:", error);
       this.showMessage("Ошибка соединения с сервером", "error");
     }
   }
@@ -269,7 +283,16 @@ class TaskManager {
   renderTasks() {
     const tasksList = document.getElementById("tasks-list");
 
+    console.log("=== RENDER TASKS START ===");
+    console.log("Rendering tasks. All tasks:", this.allTasks);
+    console.log(
+      "All tasks length:",
+      this.allTasks ? this.allTasks.length : "null/undefined"
+    );
+    console.log("Current filter:", this.currentFilter);
+
     if (!this.allTasks || !Array.isArray(this.allTasks)) {
+      console.log("No tasks or not array, showing empty state");
       tasksList.innerHTML = `
                 <div class="empty-state">
                     <h3>Нет задач</h3>
@@ -282,9 +305,16 @@ class TaskManager {
     let filteredTasks = this.allTasks;
     if (this.currentFilter === "pending") {
       filteredTasks = this.allTasks.filter((task) => !task.is_done);
+      console.log("Filtered for pending tasks:", filteredTasks);
     } else if (this.currentFilter === "completed") {
       filteredTasks = this.allTasks.filter((task) => task.is_done);
+      console.log("Filtered for completed tasks:", filteredTasks);
+    } else {
+      console.log("Showing all tasks:", filteredTasks);
     }
+
+    console.log("Final filtered tasks:", filteredTasks);
+    console.log("Filtered tasks length:", filteredTasks.length);
 
     if (filteredTasks.length === 0) {
       const message =
@@ -306,9 +336,12 @@ class TaskManager {
       return;
     }
 
+    console.log("Rendering HTML for tasks:", filteredTasks.length);
+
     tasksList.innerHTML = filteredTasks
-      .map(
-        (task) => `
+      .map((task) => {
+        console.log("Rendering task:", task);
+        return `
             <div class="task-item ${
               task.is_done ? "completed" : ""
             }" data-task-id="${task.id}">
@@ -327,23 +360,30 @@ class TaskManager {
                      })">Удалить</button>
                  </div>
             </div>
-        `
-      )
+        `;
+      })
       .join("");
+
+    console.log(
+      "HTML rendered, tasksList.innerHTML length:",
+      tasksList.innerHTML.length
+    );
+    console.log("=== RENDER TASKS END ===");
   }
 
   async toggleTaskStatus(taskId, currentStatus) {
     try {
+      const taskIdInt = parseInt(taskId); // Преобразуем в число
       let response;
       if (currentStatus) {
-        response = await fetch(`${this.apiBase}/task/undone/${taskId}`, {
+        response = await fetch(`${this.apiBase}/task/undone/${taskIdInt}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.token}`,
           },
         });
       } else {
-        response = await fetch(`${this.apiBase}/task/done/${taskId}`, {
+        response = await fetch(`${this.apiBase}/task/done/${taskIdInt}`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${this.token}`,
@@ -352,9 +392,23 @@ class TaskManager {
       }
 
       if (response.ok) {
-        const taskIndex = this.allTasks.findIndex((task) => task.id === taskId);
+        console.log(
+          "Toggling task status. TaskId:",
+          taskIdInt,
+          "Current status:",
+          currentStatus
+        );
+        console.log("All tasks before update:", this.allTasks);
+        const taskIndex = this.allTasks.findIndex(
+          (task) => task.id === taskIdInt
+        );
+        console.log("Task index found:", taskIndex);
         if (taskIndex !== -1) {
           this.allTasks[taskIndex].is_done = !currentStatus;
+          console.log(
+            "Task updated. New status:",
+            this.allTasks[taskIndex].is_done
+          );
         }
         this.renderTasks();
         this.showMessage(
@@ -414,7 +468,7 @@ class TaskManager {
     const taskDescription =
       taskElement?.querySelector(".task-description")?.textContent || "Задача";
 
-    this.taskToDelete = taskId;
+    this.taskToDelete = parseInt(taskId); // Преобразуем в число
     document.getElementById(
       "task-preview"
     ).textContent = `"${taskDescription}"`;
@@ -447,13 +501,22 @@ class TaskManager {
       );
 
       if (response.ok) {
-        this.hideDeleteModal();
+        console.log("Before deletion, allTasks:", this.allTasks);
+        console.log("Deleting task ID:", this.taskToDelete);
         this.allTasks = this.allTasks.filter(
           (task) => task.id !== this.taskToDelete
         );
+        console.log("After deletion, allTasks:", this.allTasks);
+        this.hideDeleteModal();
         this.renderTasks();
+        // Принудительное обновление DOM
+        setTimeout(() => {
+          this.renderTasks();
+        }, 100);
         this.showMessage("Задача удалена!", "success");
       } else {
+        const errorText = await response.text();
+        console.error("Error deleting task:", response.status, errorText);
         this.showMessage("Ошибка удаления задачи", "error");
       }
     } catch (error) {

@@ -2,11 +2,12 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/gorilla/mux"
 	"intern_golang/internal/middleware"
 	"intern_golang/internal/models"
 	"net/http"
 	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 func (api *api) CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -29,8 +30,14 @@ func (api *api) CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	createdTask, err := api.db.GetTaskByID(taskID, userID)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(taskID)
+	json.NewEncoder(w).Encode(createdTask)
 }
 
 func (api *api) GetTaskByIdHandler(w http.ResponseWriter, r *http.Request) {
