@@ -2,29 +2,18 @@ package api
 
 import (
 	"intern_golang/internal/middleware"
-	"intern_golang/internal/models"
+	"intern_golang/internal/repository"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-type Repository interface {
-	CreateUser(user models.User) (int, error)
-	GetUserByEmail(email string) (models.User, error)
-	CreateTask(task models.Task, userID int) (int, error)
-	GetAllTasks(userID int) ([]models.Task, error)
-	GetTaskByID(taskID int, userID int) (models.Task, error)
-	DeleteTaskByID(taskID int, userID int) error
-	MarkAsDone(id int, userID int) error
-	MarkTaskAsUnDone(id int, userID int) error
-}
-
 type api struct {
 	router *mux.Router
-	repo   Repository
+	repo   repository.Repository
 }
 
-func NewAPI(r *mux.Router, repo Repository) *api {
+func NewAPI(r *mux.Router, repo repository.Repository) *api {
 	return &api{router: r, repo: repo}
 }
 
