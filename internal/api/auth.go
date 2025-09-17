@@ -14,7 +14,7 @@ func (api *api) LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := api.db.GetUserByEmail(req.Email)
+	user, err := api.repo.GetUserByEmail(req.Email)
 	if err != nil {
 		http.Error(w, "User not found", http.StatusNotFound)
 		return
@@ -60,7 +60,7 @@ func (api *api) RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		Password: req.Password,
 	}
 
-	userID, err := api.db.CreateUser(user)
+	userID, err := api.repo.CreateUser(user)
 	if err != nil {
 		http.Error(w, "User already exists or database error", http.StatusConflict)
 		return

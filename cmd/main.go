@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/gorilla/mux"
 	"intern_golang/internal/api"
 	"intern_golang/internal/repository"
 	"log"
+
+	"github.com/gorilla/mux"
 )
 
 func main() {
@@ -12,7 +13,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	api := api.NewAPI(mux.NewRouter(), db)
-	api.Handle()
-	log.Fatal(api.ListenAndServe("localhost:8080"))
+	srv := api.NewAPI(mux.NewRouter(), db)
+	srv.Handle()
+	log.Fatal(srv.ListenAndServe("localhost:8080"))
 }

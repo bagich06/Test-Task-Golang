@@ -24,13 +24,13 @@ func (api *api) CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	taskID, err := api.db.CreateTask(task, userID)
+	taskID, err := api.repo.CreateTask(task, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	createdTask, err := api.db.GetTaskByID(taskID, userID)
+	createdTask, err := api.repo.GetTaskByID(taskID, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -60,7 +60,7 @@ func (api *api) GetTaskByIdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	task, err := api.db.GetTaskByID(intTaskID, userID)
+	task, err := api.repo.GetTaskByID(intTaskID, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -90,7 +90,7 @@ func (api *api) DeleteTaskByIdHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = api.db.DeleteTaskByID(intTaskID, userID)
+	err = api.repo.DeleteTaskByID(intTaskID, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -107,7 +107,7 @@ func (api *api) GetAllTasksHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tasks, err := api.db.GetAllTasks(userID)
+	tasks, err := api.repo.GetAllTasks(userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -137,7 +137,7 @@ func (api *api) MarkTaskAsDoneHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = api.db.MarkAsDone(intTaskID, userID)
+	err = api.repo.MarkAsDone(intTaskID, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -167,7 +167,7 @@ func (api *api) MarkTaskAsUnDoneHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	err = api.db.MarkTaskAsUnDone(intTaskID, userID)
+	err = api.repo.MarkTaskAsUnDone(intTaskID, userID)
 	if err != nil {
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return

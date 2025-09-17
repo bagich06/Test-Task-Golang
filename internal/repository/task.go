@@ -14,9 +14,8 @@ func (repo *PGRepo) CreateTask(task models.Task, userID int) (int, error) {
 }
 
 func (repo *PGRepo) GetAllTasks(userID int) (tasks []models.Task, err error) {
-	// Инициализируем tasks как пустой слайс, а не nil
 	tasks = make([]models.Task, 0)
-	
+
 	rows, err := repo.pool.Query(context.Background(), `SELECT id, user_id, description, is_done FROM tasks WHERE user_id = $1`, userID)
 	if err != nil {
 		return tasks, err

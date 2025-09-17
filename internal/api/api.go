@@ -2,23 +2,34 @@ package api
 
 import (
 	"intern_golang/internal/middleware"
-	"intern_golang/internal/repository"
+	"intern_golang/internal/models"
 	"net/http"
 
 	"github.com/gorilla/mux"
 )
 
-type api struct {
-	r  *mux.Router
-	db *repository.PGRepo
+type Repository interface {
+	CreateUser(user models.User) (int, error)
+	GetUserByEmail(email string) (models.User, error)
+	CreateTask(task models.Task, userID int) (int, error)
+	GetAllTasks(userID int) ([]models.Task, error)
+	GetTaskByID(taskID int, userID int) (models.Task, error)
+	DeleteTaskByID(taskID int, userID int) error
+	MarkAsDone(id int, userID int) error
+	MarkTaskAsUnDone(id int, userID int) error
 }
 
-func NewAPI(r *mux.Router, db *repository.PGRepo) *api {
-	return &api{r: r, db: db}
+type api struct {
+	router *mux.Router
+	repo   Repository
+}
+
+func NewAPI(r *mux.Router, repo Repository) *api {
+	return &api{router: r, repo: repo}
 }
 
 func (api *api) Handle() {
-	api.r.Use(func(next http.Handler) http.Handler {
+	api.router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
@@ -33,16 +44,16 @@ func (api *api) Handle() {
 		})
 	})
 
-	api.r.HandleFunc("/api/login", api.LoginHandler).Methods(http.MethodPost, http.MethodOptions)
-	api.r.HandleFunc("/api/register", api.RegisterHandler).Methods(http.MethodPost, http.MethodOptions)
-	api.r.HandleFunc("/api/task/create", middleware.AuthMiddleware(api.CreateTaskHandler)).Methods(http.MethodPost, http.MethodOptions)
-	api.r.HandleFunc("/api/task/delete/{id}", middleware.AuthMiddleware(api.DeleteTaskByIdHandler)).Methods(http.MethodDelete, http.MethodOptions)
-	api.r.HandleFunc("/api/task/{id}", middleware.AuthMiddleware(api.GetTaskByIdHandler)).Methods(http.MethodGet, http.MethodOptions)
-	api.r.HandleFunc("/api/tasks", middleware.AuthMiddleware(api.GetAllTasksHandler)).Methods(http.MethodGet, http.MethodOptions)
-	api.r.HandleFunc("/api/task/done/{id}", middleware.AuthMiddleware(api.MarkTaskAsDoneHandler)).Methods(http.MethodPost, http.MethodOptions)
-	api.r.HandleFunc("/api/task/undone/{id}", middleware.AuthMiddleware(api.MarkTaskAsUnDoneHandler)).Methods(http.MethodPost, http.MethodOptions)
+	api.router.HandleFunc("/api/login", api.LoginHandler).Methods(http.MethodPost, http.MethodOptions)
+	api.router.HandleFunc("/api/register", api.RegisterHandler).Methods(http.MethodPost, http.MethodOptions)
+	api.router.HandleFunc("/api/task/create", middleware.AuthMiddleware(api.CreateTaskHandler)).Methods(http.MethodPost, http.MethodOptions)
+	api.router.HandleFunc("/api/task/delete/{id}", middleware.AuthMiddleware(api.DeleteTaskByIdHandler)).Methods(http.MethodDelete, http.MethodOptions)
+	api.router.HandleFunc("/api/task/{id}", middleware.AuthMiddleware(api.GetTaskByIdHandler)).Methods(http.MethodGet, http.MethodOptions)
+	api.router.HandleFunc("/api/tasks", middleware.AuthMiddleware(api.GetAllTasksHandler)).Methods(http.MethodGet, http.MethodOptions)
+	api.router.HandleFunc("/api/task/done/{id}", middleware.AuthMiddleware(api.MarkTaskAsDoneHandler)).Methods(http.MethodPost, http.MethodOptions)
+	api.router.HandleFunc("/api/task/undone/{id}", middleware.AuthMiddleware(api.MarkTaskAsUnDoneHandler)).Methods(http.MethodPost, http.MethodOptions)
 }
 
 func (api *api) ListenAndServe(addr string) error {
-	return http.ListenAndServe(addr, api.r)
+	return http.ListenAndServe(addr, api.router)
 }
